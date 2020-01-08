@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <winsock2.h>
+#define BUFFSIZE 1024
+void ErrorHandling(char *message);
+
+//回声服务器客户端
+int main(int argc, char *argv[])
+{
+	WSADATA wsaData;
+	SOCKET hServSock, hClntSock;
+	SOCKADDR_IN servAddr, clntAddr;
+	char message[BUFFSIZE];
+	int i = 0;
+	int szClntAddr;
+	int recvLen = 0;
+	if (argc != 2)
+	{
+		printf("Usage:%s <port>\n", argv[0]);
+		exit(1);
+	}
+
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+	{
+		ErrorHandling("WSAStartup() error!");
+	}
+
+	hServSock = socket(PF_INET, SOCK_STREAM, 0);
+	if (hServSock == INVALID_SOCKET)
+		ErrorHandling("Socket() Error");
+	memset(&servAddr, 0, sizeof(servAddr));
+	servAddr.sin_family = AF_INET;
+	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	servAddr.sin_port = htons(atoi(argv[1]));
+
+	if (bind(hServSock, (SOCKADDR*)&servAddr, sizeof(servAddr)) == SOCKET_ERROR)
+		ErrorHandling("bind() Error");
+	 
+	if (listen(hServSock, 5) == SOCKET_ERROR)
+		ErrorHandling("listen() Error");
+
+	szClntAddr = sizeof(clntAddr);
+	for (i = 0; i < 5; i++)
+	{
+		hClntSock = accept(hServSock, (SOCKADDR*)&clntAddr, &szClntAddr);
+		if (hClntSock == SOCKET_ERROR)
+			ErrorHandling("accept() Error");
+		else
+			printf("Connect client %d\n", i + 1);
+		//接收发送数据
+		while((recvLen = recv(hClntSock,message,BUFFSIZE,0)) != 0)
+			send(hClntSock, message, recvLen, 0);
+		closesocket(hClntSock);
+	}
+	
+	closesocket(hServSock);
+	WSACleanup();
+	return 0;
+
+
+}
+
+void ErrorHandling(char *message)
+{
+	fputs(message, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
